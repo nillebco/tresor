@@ -2,7 +2,7 @@
 
 **Personal treasury forecast** — a zero-dependency, single-file web app for tracking and projecting your personal finances. No server, no account, no database. Everything lives in your browser's `localStorage`.
 
-[Access this site](https://raw.githack.com/nillebco/tresor/main/index.html)
+[Try this](https://raw.githack.com/nillebco/tresor/main/index.html)
 
 ---
 
