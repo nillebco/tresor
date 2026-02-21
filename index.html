@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treasury Forecast</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e14;
+    --surface: #13161f;
+    --surface2: #1a1e2a;
+    --border: #252a38;
+    --text: #e8eaf0;
+    --muted: #5a6080;
+    --accent: #4f8ef7;
+    --green: #3ecf8e;
+    --red: #f76f6f;
+    --amber: #f5a623;
+    --recurring-in: #1a3a52;
+    --recurring-in-border: #2a6a9a;
+    --recurring-out: #3a1a2a;
+    --recurring-out-border: #8a2a5a;
+    --onetime-in: #1a3a2a;
+    --onetime-in-border: #2a7a4a;
+    --onetime-out: #3a2a1a;
+    --onetime-out-border: #8a5a1a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* Layout */
+  .app { display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+  
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+  /* Balance card */
+  .balance-card {
+    margin: 20px 16px;
+    background: linear-gradient(135deg, #1a2540 0%, #1a2030 100%);
+    border: 1px solid #2a3560;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .balance-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .balance-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 6px 0 2px;
+  }
+  .balance-amount.negative { color: var(--red); }
+  .balance-date { color: var(--muted); font-size: 11px; }
+
+  /* Form */
+  .form-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    flex: 1;
+  }
+  .form-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  .form-row { margin-bottom: 10px; }
+  label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  select option { background: var(--surface2); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 12px;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:active { transform: scale(0.98); }
+  .btn-add { background: var(--accent); color: #fff; }
+  .btn-clear { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); margin-top: 6px; }
+
+  /* Legend */
+  .legend {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Main */
+  .main { overflow-y: auto; display: flex; flex-direction: column; }
+  
+  /* Top bar */
+  .topbar {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+  .year-nav { display: flex; align-items: center; gap: 12px; }
+  .year-nav button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .year-nav button:hover { border-color: var(--accent); }
+  .year-label { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--accent); min-width: 50px; text-align: center; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    padding: 16px 24px;
+    border-right: 1px solid var(--border);
+  }
+  .stat:last-child { border-right: none; }
+  .stat-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+
+  /* Table */
+  .table-wrap { flex: 1; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface); position: sticky; top: 0; }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 8px 16px;
+    border-bottom: 1px solid #1a1d26;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  tr.month-header td {
+    background: var(--surface2);
+    padding: 6px 16px;
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    position: sticky;
+  }
+  tr.entry-row { cursor: pointer; transition: background 0.1s; }
+  tr.fact-row td { background: #1a2a1a !important; border-left: 3px solid #3ecf8e !important; cursor: pointer; }
+  tr.fact-row:hover td { background: #1f341f !important; }
+  tr.fact-row.anchor-row td { background: #0f2a1f !important; border-left: 3px solid #3ecf8e !important; }
+  tr.fact-row.anchor-row:hover td { background: #183520 !important; }
+  tr.entry-row:hover td { background: rgba(255,255,255,0.03); }
+  tr.entry-row.editing td { background: rgba(79,142,247,0.08) !important; }
+  tr.entry-row.editing { outline: 1px solid var(--accent); }
+  tr.entry-row.recurring-in td { border-left: 3px solid var(--recurring-in-border); }
+  tr.entry-row.recurring-out td { border-left: 3px solid var(--recurring-out-border); }
+  tr.entry-row.onetime-in td { border-left: 3px solid var(--onetime-in-border); }
+  tr.entry-row.onetime-out td { border-left: 3px solid var(--onetime-out-border); }
+  tr.entry-row.future td:not(:last-child) { opacity: 0.5; }
+
+  .amount-in { color: var(--green); }
+  .amount-out { color: var(--red); }
+  .total-cell { font-family: 'Syne', sans-serif; font-weight: 600; }
+  .total-cell.positive { color: var(--text); }
+  .total-cell.negative { color: var(--red); }
+
+  .tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .tag-recurring { background: #1a2540; color: #5a90d0; border: 1px solid #2a4570; }
+  .tag-onetime { background: #2a2a1a; color: #d0a050; border: 1px solid #5a5010; }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+  }
+  tr:hover .del-btn { opacity: 1 !important; }
+  .del-btn:hover { color: var(--red); background: rgba(247,111,111,0.1); }
+
+  /* Month summary row */
+  tr.month-summary td {
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(20,24,36,0.5);
+    border-bottom: 2px solid var(--border);
+  }
+  tr.month-summary .ms-in { color: var(--green); }
+  tr.month-summary .ms-out { color: var(--red); }
+  tr.month-summary .ms-net.pos { color: var(--green); }
+  tr.month-summary .ms-net.neg { color: var(--red); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .type-btn {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .type-btn.active-in { background: #1a3a52; border-color: var(--accent); color: var(--accent); }
+  .type-btn.active-out { background: #3a1a2a; border-color: #e05080; color: #e05080; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">trésor<span>.</span></div>
+      <div class="subtitle">personal treasury forecast</div>
+    </div>
+
+    <div class="balance-card">
+      <div class="balance-label">Forecasted Balance</div>
+      <div class="balance-amount" id="currentBalance">0,00</div>
+      <div class="balance-date" id="balanceDate">—</div>
+    </div>
+
+    <!-- Observations / Facts -->
+    <div style="margin: 0 16px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px;">
+      <div style="color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Observed Balances</div>
+
+      <!-- Add fact form -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+        <div style="position:relative;">
+          <span style="position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px;">€</span>
+          <input type="number" id="fact-amount" step="0.01" placeholder="amount"
+            style="padding-left: 22px;"
+            onkeydown="if(event.key==='Enter') addFact()">
+        </div>
+        <input type="date" id="fact-date" onkeydown="if(event.key==='Enter') addFact()">
+      </div>
+      <button onclick="addFact()"
+        style="width:100%; background:#1a3a52; border:1px solid #2a6a9a; color:#5a90d0;
+               font-family:'Syne',sans-serif; font-size:11px; font-weight:600; padding:7px;
+               border-radius:6px; cursor:pointer;">
+        + Record Observation
+      </button>
+
+      <!-- Facts list -->
+      <div id="facts-list" style="margin-top: 10px; display:flex; flex-direction:column; gap:4px;"></div>
+    </div>
+
+    <div class="form-section">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div class="form-title" id="form-title" style="margin-bottom:0">Add Entry</div>
+        <button id="cancel-edit-btn" onclick="cancelEdit()"
+          style="display:none; background:none; border:1px solid var(--border); color:var(--muted);
+                 font-family:'DM Mono',monospace; font-size:11px; padding:3px 8px; border-radius:4px;
+                 cursor:pointer;">✕ cancel</button>
+      </div>
+
+      <input type="hidden" id="f-edit-id">
+
+      <!-- In/Out toggle -->
+      <div class="type-toggle">
+        <div class="type-btn active-in" id="btn-in" onclick="setDirection('in')">▲ Income</div>
+        <div class="type-btn" id="btn-out" onclick="setDirection('out')">▼ Expense</div>
+      </div>
+
+      <div class="form-row">
+        <label>Label</label>
+        <input type="text" id="f-label" placeholder="e.g. salary, rent…">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Amount (€)</label>
+          <input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="form-row">
+          <label>Date</label>
+          <input type="date" id="f-date">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Frequency</label>
+        <select id="f-freq">
+          <option value="once">One-time</option>
+          <option value="monthly">Monthly (same day)</option>
+          <option value="yearly">Yearly (same date)</option>
+        </select>
+      </div>
+
+      <button class="btn btn-add" id="submit-btn" onclick="submitForm()">+ Add Entry</button>
+      <button class="btn btn-clear" onclick="clearAll()">Clear All Data</button>
+    </div>
+
+    <!-- Export / Import -->
+    <div style="padding: 14px 16px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+      <div style="color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Export / Import</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="btn" onclick="exportData()"
+          style="margin-top:0; background:var(--surface2); color:var(--green); border:1px solid #2a5a3a; font-size:11px; padding:8px 6px;">
+          &#8595; Export JSON
+        </button>
+        <button class="btn" onclick="document.getElementById('import-file').click()"
+          style="margin-top:0; background:var(--surface2); color:var(--accent); border:1px solid #2a4a7a; font-size:11px; padding:8px 6px;">
+          &#8593; Import JSON
+        </button>
+      </div>
+      <div id="import-status" style="color:var(--muted); font-size:10px; margin-top:8px; min-height:14px;"></div>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div style="color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Legend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2a6a9a"></div>Recurring income</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8a2a5a"></div>Recurring expense</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2a7a4a"></div>One-time income</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8a5a1a"></div>One-time expense</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Forecast Ledger</div>
+      <div class="year-nav">
+        <button onclick="changeYear(-1)">‹</button>
+        <div class="year-label" id="yearLabel">—</div>
+        <button onclick="changeYear(1)">›</button>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-label">Year Income</div>
+        <div class="stat-value green" id="stat-in">€ 0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Year Expenses</div>
+        <div class="stat-value red" id="stat-out">€ 0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">End of Year Balance</div>
+        <div class="stat-value" id="stat-eoy">€ 0</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="ledger-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Label</th>
+            <th>Type</th>
+            <th class="right">In</th>
+            <th class="right">Out</th>
+            <th class="right">Balance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ledger-body"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state">
+        <div class="icon">◈</div>
+        <p>No entries yet.<br>Add your first income or expense using the form.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let direction = 'in';
+let viewYear = new Date().getFullYear();
+
+function load() {
+  try { return JSON.parse(localStorage.getItem('treasury_entries') || '[]'); } catch { return []; }
+}
+function save(entries) {
+  localStorage.setItem('treasury_entries', JSON.stringify(entries));
+}
+// ─── Facts (observed balances) ───────────────────────────────────────────────
+function loadFacts() {
+  try { return JSON.parse(localStorage.getItem('treasury_facts') || '[]'); } catch { return []; }
+}
+function saveFacts(facts) {
+  localStorage.setItem('treasury_facts', JSON.stringify(facts));
+}
+
+// The most recent fact on or before today is the anchor for forecasting
+function getLatestFact() {
+  const today = new Date(); today.setHours(23,59,59,999);
+  const facts = loadFacts()
+    .filter(f => new Date(f.date + 'T00:00:00') <= today)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  return facts[0] || null;
+}
+
+function addFact() {
+  const raw = document.getElementById('fact-amount').value;
+  const date = document.getElementById('fact-date').value;
+  const amount = parseFloat(raw);
+  if (raw === '' || isNaN(amount)) { alert('Enter a valid amount.'); return; }
+  if (!date) { alert('Pick a date.'); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  if (date > today) { alert('An observation must be today or in the past.'); return; }
+
+  const facts = loadFacts();
+  facts.push({ id: Date.now(), amount, date });
+  saveFacts(facts);
+  document.getElementById('fact-amount').value = '';
+  render();
+}
+
+function deleteFact(id) {
+  saveFacts(loadFacts().filter(f => f.id !== id));
+  render();
+}
+
+function renderFacts() {
+  const facts = loadFacts().sort((a, b) => new Date(b.date) - new Date(a.date));
+  const latest = getLatestFact();
+  const el = document.getElementById('facts-list');
+  if (facts.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:10px;text-align:center;padding:6px 0;">No observations yet — forecast starts from 0</div>';
+    return;
+  }
+  el.innerHTML = facts.map(f => {
+    const isAnchor = latest && f.id === latest.id;
+    const borderColor = isAnchor ? '#2a6a9a' : 'var(--border)';
+    const label = isAnchor ? '<span style="color:#5a90d0;font-size:9px;margin-left:4px;">● anchor</span>' : '';
+    const opacity = isAnchor ? '1' : '0.5';
+    return `<div style="display:flex; align-items:center; justify-content:space-between;
+                background:var(--bg); border:1px solid ${borderColor}; border-radius:6px;
+                padding:6px 10px; opacity:${opacity}; transition:opacity 0.2s;">
+      <div>
+        <span style="color:var(--text);font-size:12px;">€ ${fmt(f.amount)}</span>${label}
+        <div style="color:var(--muted);font-size:10px;margin-top:1px;">${fmtDateStr(f.date)}</div>
+      </div>
+      <button onclick="deleteFact(${f.id})"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px;"
+        title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// Kept for export/import compat — now returns the latest fact's amount
+function loadInitialBalance() {
+  const f = getLatestFact();
+  return f ? f.amount : 0;
+}
+function updateInitBalanceDisplay() {} // no-op, replaced by renderFacts()
+
+// ─── Direction toggle ─────────────────────────────────────────────────────────
+function setDirection(d) {
+  direction = d;
+  document.getElementById('btn-in').className = 'type-btn' + (d === 'in' ? ' active-in' : '');
+  document.getElementById('btn-out').className = 'type-btn' + (d === 'out' ? ' active-out' : '');
+}
+
+// ─── Default date = today ─────────────────────────────────────────────────────
+document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+document.getElementById('fact-date').value = new Date().toISOString().slice(0, 10);
+
+// ─── Add / Edit entry ────────────────────────────────────────────────────────
+function submitForm() {
+  const editId = document.getElementById('f-edit-id').value;
+  if (editId) {
+    saveEdit(parseInt(editId));
+  } else {
+    addEntry();
+  }
+}
+
+function addEntry() {
+  const label = document.getElementById('f-label').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const date = document.getElementById('f-date').value;
+  const freq = document.getElementById('f-freq').value;
+
+  if (!label || isNaN(amount) || amount <= 0 || !date) {
+    alert('Please fill all fields with valid values.');
+    return;
+  }
+
+  const entries = load();
+  entries.push({ id: Date.now(), label, amount, date, freq, direction });
+  save(entries);
+
+  document.getElementById('f-label').value = '';
+  document.getElementById('f-amount').value = '';
+  render();
+}
+
+function startEdit(id) {
+  const entry = load().find(e => e.id === id);
+  if (!entry) return;
+
+  // Populate form
+  document.getElementById('f-edit-id').value = id;
+  document.getElementById('f-label').value = entry.label;
+  document.getElementById('f-amount').value = entry.amount;
+  document.getElementById('f-date').value = entry.date;
+  document.getElementById('f-freq').value = entry.freq;
+  setDirection(entry.direction);
+
+  // Switch form to edit mode
+  document.getElementById('form-title').textContent = 'Edit Entry';
+  document.getElementById('submit-btn').textContent = '✓ Save Changes';
+  document.getElementById('submit-btn').style.background = '#2a7a4a';
+  document.getElementById('cancel-edit-btn').style.display = 'block';
+
+  // Scroll sidebar to top so form is visible
+  document.querySelector('.sidebar').scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Highlight the editing row
+  document.querySelectorAll('.entry-row').forEach(tr => tr.classList.remove('editing'));
+  document.querySelectorAll('.entry-row').forEach(tr => {
+    if (tr.dataset.id == id) tr.classList.add('editing');
+  });
+}
+
+function saveEdit(id) {
+  const label = document.getElementById('f-label').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const date = document.getElementById('f-date').value;
+  const freq = document.getElementById('f-freq').value;
+
+  if (!label || isNaN(amount) || amount <= 0 || !date) {
+    alert('Please fill all fields with valid values.');
+    return;
+  }
+
+  const entries = load().map(e =>
+    e.id === id ? { ...e, label, amount, date, freq, direction } : e
+  );
+  save(entries);
+  cancelEdit();
+  render();
+}
+
+function cancelEdit() {
+  document.getElementById('f-edit-id').value = '';
+  document.getElementById('f-label').value = '';
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('f-freq').value = 'once';
+  setDirection('in');
+
+  document.getElementById('form-title').textContent = 'Add Entry';
+  document.getElementById('submit-btn').textContent = '+ Add Entry';
+  document.getElementById('submit-btn').style.background = 'var(--accent)';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+
+  document.querySelectorAll('.entry-row').forEach(tr => tr.classList.remove('editing'));
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+function deleteEntry(id) {
+  save(load().filter(e => e.id !== id));
+  render();
+}
+
+function clearAll() {
+  if (confirm('Delete all entries and observations?')) {
+    localStorage.removeItem('treasury_entries');
+    localStorage.removeItem('treasury_init_balance');
+    localStorage.removeItem('treasury_facts');
+    render();
+  }
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+function exportData() {
+  const data = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    facts: loadFacts(),
+    entries: load()
+  };
+  const json = JSON.stringify(data, null, 2);
+  const date = new Date().toISOString().slice(0, 10);
+
+  // Encode to base64 safely (handles unicode via TextEncoder)
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  const b64 = btoa(binary);
+
+  const a = document.createElement('a');
+  a.href = 'data:application/json;base64,' + b64;
+  a.download = `treasury-${date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ─── Import ───────────────────────────────────────────────────────────────────
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const entries = Array.isArray(data) ? data : (data.entries || []);
+      const importedFacts = Array.isArray(data) ? [] : (data.facts || []);
+
+      for (const entry of entries) {
+        if (!entry.id || !entry.label || !entry.amount || !entry.date || !entry.direction || !entry.freq) {
+          throw new Error('Invalid entry format');
+        }
+      }
+
+      const status = document.getElementById('import-status');
+      const existing = load();
+      if (existing.length > 0) {
+        if (!confirm('You already have ' + existing.length + ' entries. Merge with imported data, or replace everything?\n\nOK = Merge  |  Cancel = Replace')) {
+          save(entries);
+          saveFacts(importedFacts);
+          status.innerHTML = '<span style="color:var(--green)">✓ Replaced with ' + entries.length + ' entries</span>';
+        } else {
+          const existingIds = new Set(existing.map(e => e.id));
+          const merged = [...existing, ...entries.filter(e => !existingIds.has(e.id))];
+          save(merged);
+          const existingFactIds = new Set(loadFacts().map(f => f.id));
+          const mergedFacts = [...loadFacts(), ...importedFacts.filter(f => !existingFactIds.has(f.id))];
+          saveFacts(mergedFacts);
+          status.innerHTML = '<span style="color:var(--green)">✓ Merged — ' + merged.length + ' entries total</span>';
+        }
+      } else {
+        save(entries);
+        saveFacts(importedFacts);
+        status.innerHTML = '<span style="color:var(--green)">✓ Imported ' + entries.length + ' entries</span>';
+      }
+      render();
+    } catch (err) {
+      document.getElementById('import-status').innerHTML =
+        '<span style="color:var(--red)">✗ Invalid file: ' + err.message + '</span>';
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ─── Edit fact ───────────────────────────────────────────────────────────────
+function startEditFact(id) {
+  const fact = loadFacts().find(f => f.id === id);
+  if (!fact) return;
+
+  const newAmount = prompt('Edit observed balance (€):', fact.amount);
+  if (newAmount === null) return;
+  const amount = parseFloat(newAmount);
+  if (isNaN(amount)) { alert('Invalid amount.'); return; }
+
+  const newDate = prompt('Edit date (YYYY-MM-DD):', fact.date);
+  if (newDate === null) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (newDate > today) { alert('An observation must be today or in the past.'); return; }
+
+  const facts = loadFacts().map(f => f.id === id ? { ...f, amount, date: newDate } : f);
+  saveFacts(facts);
+  render();
+}
+
+// ─── Year navigation ──────────────────────────────────────────────────────────
+function changeYear(delta) {
+  viewYear += delta;
+  render();
+}
+
+// ─── Expand recurring entries into concrete events for a given year ───────────
+function expandEntries(entries, year, anchorDate) {
+  // anchorDate: events on or before this date are ignored (already accounted for in seed balance)
+  const anchor = anchorDate || new Date(0);
+  const events = [];
+  for (const e of entries) {
+    const base = new Date(e.date + 'T00:00:00');
+    const baseYear = base.getFullYear();
+    const baseMonth = base.getMonth();
+
+    if (e.freq === 'once') {
+      if (baseYear === year && base > anchor) {
+        events.push({ ...e, dateObj: base });
+      }
+    } else if (e.freq === 'monthly') {
+      // Start from whichever is later: entry start date or anchor date
+      const effectiveStart = base > anchor ? base : anchor;
+      const effYear = effectiveStart.getFullYear();
+      const effMonth = effectiveStart.getMonth();
+      const startMonth = (effYear === year) ? effMonth : (effYear > year ? 13 : 0);
+      for (let m = startMonth; m < 12; m++) {
+        const d = new Date(year, m, base.getDate());
+        if (d.getMonth() !== m) continue; // guard e.g. Feb 30
+        if (d > anchor) events.push({ ...e, dateObj: d });
+      }
+    } else if (e.freq === 'yearly') {
+      if (baseYear <= year) {
+        const d = new Date(year, baseMonth, base.getDate());
+        if (d > anchor) events.push({ ...e, dateObj: d });
+      }
+    }
+  }
+  events.sort((a, b) => a.dateObj - b.dateObj);
+  return events;
+}
+
+// ─── Expand all occurrences between two dates (inclusive) ────────────────────
+function expandAllEntries(entries, fromDate, toDate) {
+  const events = [];
+  for (const e of entries) {
+    const base = new Date(e.date + 'T00:00:00');
+    if (e.freq === 'once') {
+      if (base > fromDate && base <= toDate) events.push({ ...e, dateObj: base });
+    } else if (e.freq === 'monthly') {
+      const start = base > fromDate ? base : fromDate;
+      let y = start.getFullYear(), m = start.getMonth();
+      for (let guard = 0; guard < 600; guard++) {
+        const d = new Date(y, m, base.getDate());
+        if (d.getMonth() !== m) { m++; if (m > 11) { m = 0; y++; } continue; }
+        if (d > toDate) break;
+        if (d > fromDate) events.push({ ...e, dateObj: d });
+        m++; if (m > 11) { m = 0; y++; }
+      }
+    } else if (e.freq === 'yearly') {
+      let y = base.getFullYear();
+      for (let guard = 0; guard < 100; guard++) {
+        const d = new Date(y, base.getMonth(), base.getDate());
+        if (d > toDate) break;
+        if (d > fromDate) events.push({ ...e, dateObj: d });
+        y++;
+      }
+    }
+  }
+  events.sort((a, b) => a.dateObj - b.dateObj);
+  return events;
+}
+
+// ─── Format ───────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDate(d) {
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function fmtDateStr(s) {
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ─── Get balance at the start of `year`, anchored to the latest fact ─────────
+function getInitialBalance(entries, year) {
+  const fact = getLatestFact();
+  // anchorDate: the fact date, or epoch if no fact
+  const anchorDate = fact ? new Date(fact.date + 'T00:00:00') : new Date(0);
+  const anchorAmount = fact ? fact.amount : 0;
+
+  // Sum all entry occurrences strictly after anchorDate and before Jan 1 of year
+  const yearStart = new Date(year, 0, 1);
+  let bal = anchorAmount;
+
+  for (const e of entries) {
+    const base = new Date(e.date + 'T00:00:00');
+    if (e.freq === 'once') {
+      if (base > anchorDate && base < yearStart) {
+        bal += e.direction === 'in' ? e.amount : -e.amount;
+      }
+    } else if (e.freq === 'monthly') {
+      // iterate every occurrence from max(base, anchorDate+1day) up to yearStart
+      const effStart = base > anchorDate ? base : anchorDate;
+      let y = effStart.getFullYear(), m = effStart.getMonth();
+      while (true) {
+        const d = new Date(y, m, base.getDate());
+        if (d.getMonth() !== m) { m++; if (m > 11) { m = 0; y++; } continue; }
+        if (d >= yearStart) break;
+        if (d > anchorDate) bal += e.direction === 'in' ? e.amount : -e.amount;
+        m++; if (m > 11) { m = 0; y++; }
+      }
+    } else if (e.freq === 'yearly') {
+      let y = base.getFullYear();
+      while (true) {
+        const d = new Date(y, base.getMonth(), base.getDate());
+        if (d >= yearStart) break;
+        if (d > anchorDate) bal += e.direction === 'in' ? e.amount : -e.amount;
+        y++;
+      }
+    }
+  }
+  return bal;
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('yearLabel').textContent = viewYear;
+  renderFacts();
+  const entries = load();
+  const latestFact = getLatestFact();
+  const anchorDate = latestFact ? new Date(latestFact.date + 'T00:00:00') : new Date(0);
+
+  // Get entry events for the year (filtered to after anchor)
+  const entryEvents = expandEntries(entries, viewYear, anchorDate);
+
+  // Get facts that fall within the viewed year (ALL facts, not just latest)
+  const allFacts = loadFacts()
+    .filter(f => f.date.startsWith(String(viewYear)))
+    .map(f => ({ ...f, dateObj: new Date(f.date + 'T00:00:00'), isFact: true }));
+
+  // Merge and sort
+  const events = [...entryEvents, ...allFacts].sort((a, b) => a.dateObj - b.dateObj);
+
+  let balance = getInitialBalance(entries, viewYear);
+
+  const tbody = document.getElementById('ledger-body');
+  tbody.innerHTML = '';
+
+  const empty = document.getElementById('empty-state');
+
+  if (events.length === 0) {
+    empty.style.display = 'block';
+    document.getElementById('stat-in').textContent = '€ 0';
+    document.getElementById('stat-out').textContent = '€ 0';
+    document.getElementById('stat-eoy').textContent = '€ 0';
+    updateBalanceCard(balance, null);
+    return;
+  }
+  empty.style.display = 'none';
+
+  let yearIn = 0, yearOut = 0;
+  let lastMonth = -1;
+  let monthIn = 0, monthOut = 0;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const flushMonth = (monthName) => {
+    if (lastMonth === -1) return;
+    const tr = document.createElement('tr');
+    tr.className = 'month-summary';
+    const net = monthIn - monthOut;
+    tr.innerHTML = `
+      <td colspan="3" style="color:var(--muted)">— ${monthName} summary</td>
+      <td class="right ms-in">+${fmt(monthIn)}</td>
+      <td class="right ms-out">-${fmt(monthOut)}</td>
+      <td class="right ms-net ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${fmt(net)}</td>
+      <td></td>`;
+    tbody.appendChild(tr);
+  };
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const m = ev.dateObj.getMonth();
+
+    if (m !== lastMonth) {
+      if (lastMonth !== -1) flushMonth(MONTHS[lastMonth]);
+      monthIn = 0; monthOut = 0;
+      const htr = document.createElement('tr');
+      htr.className = 'month-header';
+      htr.innerHTML = `<td colspan="7">${MONTHS[m]} ${viewYear}</td>`;
+      tbody.appendChild(htr);
+      lastMonth = m;
+    }
+
+    if (ev.isFact) {
+      // Fact row: resets the running balance, shown in green
+      const isAnchor = latestFact && ev.id === latestFact.id;
+      balance = ev.amount;
+      const tr = document.createElement('tr');
+      tr.className = 'fact-row' + (isAnchor ? ' anchor-row' : '');
+      tr.onclick = () => startEditFact(ev.id);
+      tr.innerHTML = `
+        <td>${fmtDate(ev.dateObj)}</td>
+        <td>📍 ${isAnchor ? '<strong>Observed balance</strong>' : 'Observed balance'}</td>
+        <td><span class="tag" style="background:#0f2a1a;color:#3ecf8e;border:1px solid #1a5a30;">${isAnchor ? 'anchor' : 'fact'}</span></td>
+        <td class="right amount-in" colspan="2" style="color:var(--green);font-weight:600;">= ${fmt(ev.amount)}</td>
+        <td class="right total-cell positive">${fmt(balance)}</td>
+        <td><button class="del-btn" onclick="event.stopPropagation(); deleteFact(${ev.id})" title="Delete">✕</button></td>`;
+      tbody.appendChild(tr);
+    } else {
+      const isIn = ev.direction === 'in';
+      if (isIn) { balance += ev.amount; yearIn += ev.amount; monthIn += ev.amount; }
+      else { balance -= ev.amount; yearOut += ev.amount; monthOut += ev.amount; }
+
+      const rowClass = ev.freq !== 'once'
+        ? (isIn ? 'recurring-in' : 'recurring-out')
+        : (isIn ? 'onetime-in' : 'onetime-out');
+      const tagClass = ev.freq !== 'once' ? 'tag-recurring' : 'tag-onetime';
+      const tagLabel = ev.freq === 'once' ? 'one-time' : ev.freq;
+
+      const isFuture = ev.dateObj > today;
+
+      const tr = document.createElement('tr');
+      tr.className = `entry-row ${rowClass}`;
+      if (isFuture) tr.classList.add('future');
+      tr.dataset.id = ev.id;
+      tr.onclick = () => startEdit(ev.id);
+      tr.innerHTML = `
+        <td>${fmtDate(ev.dateObj)}</td>
+        <td>${ev.label}</td>
+        <td><span class="tag ${tagClass}">${tagLabel}</span></td>
+        <td class="right amount-in">${isIn ? fmt(ev.amount) : ''}</td>
+        <td class="right amount-out">${!isIn ? fmt(ev.amount) : ''}</td>
+        <td class="right total-cell ${balance >= 0 ? 'positive' : 'negative'}">${fmt(balance)}</td>
+        <td><button class="del-btn" onclick="event.stopPropagation(); deleteEntry(${ev.id})" title="Delete">✕</button></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+  flushMonth(MONTHS[lastMonth]);
+
+  // Stats
+  document.getElementById('stat-in').textContent = '€ ' + fmt(yearIn);
+  document.getElementById('stat-out').textContent = '€ ' + fmt(yearOut);
+  const eoy = document.getElementById('stat-eoy');
+  eoy.textContent = '€ ' + fmt(balance);
+  eoy.className = 'stat-value ' + (balance >= 0 ? 'green' : 'red');
+
+  // Current balance: anchor + all entry occurrences after anchor up to today
+  let curBal = latestFact ? latestFact.amount : 0;
+  const allEvents = expandAllEntries(entries, anchorDate, today);
+  for (const ev of allEvents) {
+    curBal += ev.direction === 'in' ? ev.amount : -ev.amount;
+  }
+  updateBalanceCard(curBal, today);
+}
+
+function updateBalanceCard(balance, date) {
+  const el = document.getElementById('currentBalance');
+  el.textContent = '€ ' + fmt(balance);
+  el.className = 'balance-amount' + (balance < 0 ? ' negative' : '');
+  document.getElementById('balanceDate').textContent = date
+    ? 'as of ' + fmtDate(date)
+    : 'no past entries';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('yearLabel').textContent = new Date().getFullYear();
+render();
+</script>
+</body>
+</html>
