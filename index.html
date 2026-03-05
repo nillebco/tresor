@@ -1282,6 +1282,9 @@
             // Get entry events for the year (filtered to after anchor)
             const entryEvents = expandEntries(entries, viewYear, anchorDate);
 
+            // Get ALL entry events for the full year (for year income/expense stats)
+            const fullYearEvents = expandEntries(entries, viewYear, null);
+
             // Get facts that fall within the viewed year (ALL facts, not just latest)
             const allFacts = loadFacts()
                 .filter(f => f.date.startsWith(String(viewYear)))
@@ -1297,17 +1300,22 @@
 
             const empty = document.getElementById('empty-state');
 
+            // Compute year totals from full-year events (not filtered by anchor)
+            let yearIn = 0, yearOut = 0;
+            for (const ev of fullYearEvents) {
+                if (ev.direction === 'in') yearIn += ev.amount;
+                else yearOut += ev.amount;
+            }
+
             if (events.length === 0) {
                 empty.style.display = 'block';
-                document.getElementById('stat-in').textContent = '€ 0';
-                document.getElementById('stat-out').textContent = '€ 0';
+                document.getElementById('stat-in').textContent = '€ ' + fmt(yearIn);
+                document.getElementById('stat-out').textContent = '€ ' + fmt(yearOut);
                 document.getElementById('stat-eoy').textContent = '€ 0';
                 updateBalanceCard(balance, null);
                 return;
             }
             empty.style.display = 'none';
-
-            let yearIn = 0, yearOut = 0;
             let lastMonth = -1;
             let monthIn = 0, monthOut = 0;
 
@@ -1360,8 +1368,8 @@
                     tbody.appendChild(tr);
                 } else {
                     const isIn = ev.direction === 'in';
-                    if (isIn) { balance += ev.amount; yearIn += ev.amount; monthIn += ev.amount; }
-                    else { balance -= ev.amount; yearOut += ev.amount; monthOut += ev.amount; }
+                    if (isIn) { balance += ev.amount; monthIn += ev.amount; }
+                    else { balance -= ev.amount; monthOut += ev.amount; }
 
                     const rowClass = ev.freq !== 'once'
                         ? (isIn ? 'recurring-in' : 'recurring-out')
