@@ -282,6 +282,40 @@
             border-color: var(--accent);
         }
 
+        .history-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .history-btn:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .history-btn.active {
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+
+        .entry-row.historical {
+            opacity: 0.45;
+        }
+
+        .entry-row.historical td {
+            text-decoration: line-through;
+            text-decoration-color: var(--muted);
+        }
+
+        .entry-row.historical .del-btn {
+            text-decoration: none;
+        }
+
         .year-label {
             font-family: 'Syne', sans-serif;
             font-size: 16px;
@@ -764,6 +798,7 @@
                     <button onclick="changeYear(-1)">‹</button>
                     <div class="year-label" id="yearLabel">—</div>
                     <button onclick="changeYear(1)">›</button>
+                    <button class="history-btn" id="history-btn" onclick="toggleHistory()" title="Show/hide past entries already accounted for in anchor balance">history</button>
                 </div>
                 <div class="github-link" id="fork-me">
                     <a id="fork-me-link" href="https://github.com/nillebco/tresor" target="_blank" rel="noopener noreferrer" title="View on GitHub" aria-label="View on GitHub">
@@ -827,6 +862,13 @@
         // ─── State ───────────────────────────────────────────────────────────────────
         let direction = 'in';
         let viewYear = new Date().getFullYear();
+        let showHistory = false;
+
+        function toggleHistory() {
+            showHistory = !showHistory;
+            document.getElementById('history-btn').classList.toggle('active', showHistory);
+            render();
+        }
 
         function load() {
             try { return JSON.parse(localStorage.getItem('treasury_entries') || '[]'); } catch { return []; }
@@ -1290,8 +1332,9 @@
                 .filter(f => f.date.startsWith(String(viewYear)))
                 .map(f => ({ ...f, dateObj: new Date(f.date + 'T00:00:00'), isFact: true }));
 
-            // Merge and sort
-            const events = [...entryEvents, ...allFacts].sort((a, b) => a.dateObj - b.dateObj);
+            // Merge and sort; when showHistory is on, include pre-anchor entries (marked historical)
+            const displayEvents = showHistory ? fullYearEvents : entryEvents;
+            const events = [...displayEvents, ...allFacts].sort((a, b) => a.dateObj - b.dateObj);
 
             let balance = getInitialBalance(entries, viewYear);
 
@@ -1380,9 +1423,12 @@
 
                     const isFuture = ev.dateObj > today;
 
+                    const isHistorical = showHistory && ev.dateObj <= anchorDate;
+
                     const tr = document.createElement('tr');
                     tr.className = `entry-row ${rowClass}`;
                     if (isFuture) tr.classList.add('future');
+                    if (isHistorical) tr.classList.add('historical');
                     tr.dataset.id = ev.id;
                     tr.onclick = () => startEdit(ev.id);
                     tr.innerHTML = `
